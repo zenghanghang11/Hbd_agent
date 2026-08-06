@@ -1,0 +1,19 @@
+{
+  "__comment__": "构造样例, 非真实接口返回. key 为 buildingCode|floor|flat. 第9座在 10/B 命中 Y(前一个组合 10/A 为 N, 用于验证会继续试); 康寧閣全部为 N, 用于验证整栋试完仍未命中的 bad case 分支.",
+  "7574190008|10|A": {
+    "busiResp": {
+      "recogFlag": "N"
+    }
+  },
+  "7574190008|10|B": {
+    "busiResp": {
+      "recogFlag": "Y",
+      "installType": "SELF"
+    }
+  },
+  "__default__": {
+    "busiResp": {
+      "recogFlag": "N"
+    }
+  }
+}

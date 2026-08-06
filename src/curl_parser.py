@@ -79,11 +79,16 @@ def parse_curl(text):
         elif tok in ("--data-raw", "--data", "-d", "--data-binary", "--data-urlencode"):
             i += 1
             body = tokens[i]
-        elif tok in ("--compressed", "-s", "-S", "-k", "-i", "-L", "--location", "-v"):
+        elif tok.startswith(("http://", "https://")) and url is None:
+            # URL 优先判定: 否则未知的布尔选项(如 --location-trusted)会把 URL 当成它的取值吃掉
+            url = tok
+        elif tok in ("--compressed", "-s", "-S", "-k", "-i", "-L", "--location", "-v",
+                     "-g", "--globoff", "--http1.1", "--http2", "--insecure"):
             pass
         elif tok.startswith("-"):
             # 未知带值选项(如 --max-time 5), 跳过其取值
-            if i + 1 < len(tokens) and not tokens[i + 1].startswith("-"):
+            if i + 1 < len(tokens) and not tokens[i + 1].startswith("-") \
+                    and not tokens[i + 1].startswith(("http://", "https://")):
                 i += 1
         elif url is None:
             url = tok
@@ -96,20 +101,33 @@ def parse_curl(text):
     return CurlRequest(url, method.upper(), headers, cookies, body)
 
 
+CURL_START_RE = re.compile(r"curl\s+(?=['\"]?https?://)")
+
+
+def split_curl_commands(text):
+    """把一段文本切成一条条 curl 命令.
+
+    不能只按 ' ;' 分隔: 需求文档里常常在两条 curl 之间夹着中文说明, 说明文字会和
+    后一条命令连在同一行(如 "...将接口curl 'https://...'"), 按分号切会把两条命令
+    并成一块 —— 那样后一条的请求头和 Cookie 会覆盖前一条, 拼出一个张冠李戴的请求.
+    所以直接以"curl + URL"出现的位置为界切分, 命令之外的说明文字自然被丢弃.
+    """
+    starts = [m.start() for m in CURL_START_RE.finditer(text)]
+    blocks = []
+    for i, start in enumerate(starts):
+        end = starts[i + 1] if i + 1 < len(starts) else len(text)
+        chunk = text[start:end].strip()
+        # 去掉命令末尾的分隔符与后面粘连的说明文字
+        chunk = re.sub(r";\s*$", "", chunk.rstrip())
+        blocks.append(chunk)
+    return blocks
+
+
 def parse_curl_file(path):
-    """解析一个文件里的所有 curl 命令(浏览器 "Copy all as cURL" 用 ' ;' 分隔)."""
+    """解析一个文件里的所有 curl 命令."""
     text = open(path, encoding="utf-8").read()
     requests_ = []
-    for block in re.split(r";\s*\n(?=\s*curl )", text):
-        block = block.strip()
-        if not block.startswith("curl"):
-            # 文件开头可能有说明文字, 从第一个 curl 开始截
-            idx = block.find("curl '")
-            if idx < 0:
-                idx = block.find("curl \"")
-            if idx < 0:
-                continue
-            block = block[idx:]
+    for block in split_curl_commands(text):
         try:
             requests_.append(parse_curl(block))
         except ValueError:

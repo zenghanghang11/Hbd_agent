@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 """CMHK 寬頻地址查询接口客户端.
 
-接口链路(取自浏览器抓包):
-    1. searchAddress    busInfo={"keyword": "<地址>"}        -> 候选地址列表, 每条带 recogFlag
-    2. getAddressDetail orderStr=<搜索结果里的那条地址对象>   -> 该楼宇的楼层 / 房间号
-    3. getInstallInfo   busInfo={..., floor, flat}          -> 安装信息(本脚本不调用)
+接口链路(按附件里的需求说明):
+    1. searchAddress    busInfo={"keyword": "<我输入的地址>"}
+       -> 取 busiResp.busiDataResp 列表的【第一个元素】, 记为 busiDataRespObj
+    2. getAddressDetail orderStr=busiDataRespObj
+       -> 返回值 busiResp 记为 busiRespObj, 从中取当前 BuildingCode 的所有 Floor 与所有 Flat
+    3. getInstallInfo   busInfo={busiRespObj 的字段..., floor, flat}
+       -> 遍历 Floor×Flat, 响应里 recogFlag == "Y" 即记录(原始输入 + Floor + Flat),
+          找到一个就跳到下一个地址
 
 反爬令牌(URL 参数 XGiOG2f705 与 Cookie zA7uZWGUB1)每次请求都变且会过期, 所以
 请求模板一律从浏览器现抓的 curl 里读, 不在代码里硬编码.
@@ -48,6 +52,22 @@ def walk(obj):
         for value in obj:
             for node in walk(value):
                 yield node
+
+
+def json_prefix(text):
+    """解析字符串开头的那段 JSON, 忽略后面粘连的内容.
+
+    需求文档常把说明文字直接写在 curl 的 --data-raw 引号里(如
+    `busInfo={...}的"recogFlag"返回值为"Y"...`), 直接 json.loads 会因
+    "Extra data" 报错. 这里只取前缀的合法 JSON.
+    """
+    if not text:
+        return {}
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(text.strip())
+        return obj if isinstance(obj, dict) else {}
+    except ValueError:
+        return {}
 
 
 def find_dicts_with(obj, key):
@@ -138,6 +158,36 @@ def _uniq(seq):
     return out
 
 
+def first_data_resp(resp):
+    """取 busiResp.busiDataResp 的第一个元素(需求明确要求取第一个, 不做筛选).
+
+    找不到标准路径时, 退回"第一个含 value+carrierInfo 的对象", 以防字段名有出入.
+    """
+    if not isinstance(resp, dict):
+        return None
+    busi = resp.get("busiResp")
+    if isinstance(busi, dict):
+        lst = busi.get("busiDataResp")
+        if isinstance(lst, list) and lst:
+            return lst[0] if isinstance(lst[0], dict) else None
+        if isinstance(lst, dict):
+            return lst
+    for node in walk(resp):
+        if isinstance(node, dict) and "value" in node and "carrierInfo" in node:
+            return node
+    return None
+
+
+def recog_flag(resp):
+    """从 getInstallInfo 响应里取 recogFlag(任意层级)."""
+    for node in walk(resp):
+        if isinstance(node, dict) and "recogFlag" in node:
+            s = scalar(node["recogFlag"])
+            if s:
+                return s.strip().upper()
+    return ""
+
+
 def extract_candidates(resp):
     """从 searchAddress 响应里抽出候选地址列表(含 recogFlag 的那些 dict)."""
     cands = find_dicts_with(resp, "recogFlag")
@@ -172,7 +222,7 @@ TAG_RE = __import__("re").compile(r"<[^>]+>")
 
 def plain_description(cand):
     """description 里带 <span class='keyWord'> 高亮标签, 去掉标签取纯文本."""
-    desc = cand.get("description") or ""
+    desc = scalar(cand.get("description")) or ""
     return TAG_RE.sub("", desc).strip()
 
 
@@ -183,17 +233,26 @@ def plain_description(cand):
 class CmhkClient:
     """按抓包模板发请求. search_tpl / detail_tpl 均为 CurlRequest."""
 
-    def __init__(self, search_tpl, detail_tpl=None, delay=1.0, timeout=30,
-                 retries=2, raw_dir=None, session=None):
+    def __init__(self, search_tpl, detail_tpl=None, install_tpl=None, delay=1.0,
+                 timeout=30, retries=2, raw_dir=None, session=None):
         if requests is None:
             raise RuntimeError("需要 requests 库: pip install requests")
         self.search_tpl = search_tpl
         self.detail_tpl = detail_tpl
+        self.install_tpl = install_tpl
+        # getInstallInfo 模板自带的固定入参(broadBandType 等), 作为构造入参的底板
+        self.install_base = (json_prefix(install_tpl.body_params().get("busInfo", ""))
+                             if install_tpl else {})
         self.delay = delay
         self.timeout = timeout
         self.retries = retries
         self.raw_dir = raw_dir
         self.session = session or requests.Session()
+        # 反爬 Cookie(zA7uZWGUB1 等)服务端每次响应都会轮换. 放进 session 里,
+        # 后续请求才会带上最新值; 每次都发模板里的旧值会被判定为异常流量.
+        for tpl in (search_tpl, detail_tpl, install_tpl):
+            if tpl:
+                self.session.cookies.update(tpl.cookies)
         self._last_call = 0.0
         self.stats = {"requests": 0, "errors": 0}
         if raw_dir:
@@ -210,6 +269,8 @@ class CmhkClient:
     def _post(self, tpl, body_params, tag):
         headers = dict(tpl.headers)
         headers.pop("content-length", None)
+        # 让 requests 自己协商压缩, 避免模板里的 br/zstd 本地解不开
+        headers.pop("accept-encoding", None)
         last_err = None
 
         for attempt in range(self.retries + 1):
@@ -217,8 +278,7 @@ class CmhkClient:
             self.stats["requests"] += 1
             try:
                 resp = self.session.post(
-                    tpl.url, headers=headers, cookies=tpl.cookies,
-                    data=body_params, timeout=self.timeout)
+                    tpl.url, headers=headers, data=body_params, timeout=self.timeout)
             except Exception as exc:                     # 网络抖动才重试
                 last_err = exc
                 self.stats["errors"] += 1
@@ -275,6 +335,24 @@ class CmhkClient:
         return self._post(self.detail_tpl, body, "getAddressDetail_%s" % (tag or order.get("value", "")))
 
 
+    def get_install_info(self, base, floor, flat, tag=""):
+        """构造 getInstallInfo 入参: 模板底板 + busiRespObj 的字段 + floor/flat."""
+        if not self.install_tpl:
+            raise ApiError("未提供 getInstallInfo 的 curl 模板")
+        info = dict(self.install_base)
+        for key in ("buildingCode", "clientType", "ofcaCode", "carrierInfo"):
+            if base.get(key):
+                info[key] = base[key]
+        if not info.get("buildingCode"):
+            info["buildingCode"] = building_code(base)
+        info.setdefault("broadBandType", "CMHK")
+        info["floor"] = floor
+        info["flat"] = flat
+        body = {"busInfo": json.dumps(info, ensure_ascii=False)}
+        return self._post(self.install_tpl, body,
+                          "getInstallInfo_%s" % (tag or "%s_%s" % (floor, flat)))
+
+
 class MockClient:
     """离线自测用: 从 fixture 目录读预置响应, 不发网络请求."""
 
@@ -298,3 +376,9 @@ class MockClient:
         self.stats["requests"] += 1
         data = self._load("getAddressDetail.sample.json")
         return data.get(candidate.get("value", ""), data.get("__default__", {}))
+
+    def get_install_info(self, base, floor, flat, tag=""):
+        self.stats["requests"] += 1
+        data = self._load("getInstallInfo.sample.json")
+        key = "%s|%s|%s" % (base.get("buildingCode") or building_code(base), floor, flat)
+        return data.get(key, data.get("__default__", {}))

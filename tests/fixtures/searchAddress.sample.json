@@ -1,11 +1,9 @@
 {
-  "__comment__": "构造样例, 非真实接口返回. 字段名取自抓包里 getAddressDetail/getInstallInfo 的请求体(carrierInfo/clientType/ofcaCode/description/custCode/value/buildingCode), recogFlag 取自需求描述. 仅用于离线验证提取逻辑; 真机跑通后请用 output/raw/ 下的真实响应替换.",
+  "__comment__": "构造样例, 非真实接口返回. 结构按需求说明: busiResp.busiDataResp 列表, 取第一个元素; 元素字段取自抓包里 getAddressDetail 的请求体. 真机跑通后请用 output/recog_y/raw/ 的真实响应替换.",
   "馬鞍山翠擁華庭第9座": {
-    "result": {"resultCode": "0", "resultMsg": "success"},
-    "busInfo": {
-      "addressList": [
+    "busiResp": {
+      "busiDataResp": [
         {
-          "recogFlag": "Y",
           "value": "第9座,翠擁華庭,沙安街,馬鞍山,新界",
           "description": "<span class='keyWord'>第9座</span>,<span class='keyWord'>翠擁華庭</span>,沙安街,馬鞍山,新界",
           "custCode": "",
@@ -13,51 +11,70 @@
           "ofcaCode": "62012",
           "buildingCode": "7574190008",
           "carrierInfo": [
-            {"addressCode": "7574190008", "carrier": "CMHK", "priority": 1},
-            {"addressCode": "7574190008", "carrier": "I-CABLE", "priority": 2},
-            {"addressCode": "62012", "carrier": "HKBN", "priority": 3}
+            {
+              "addressCode": "7574190008",
+              "carrier": "CMHK",
+              "priority": 1
+            },
+            {
+              "addressCode": "7574190008",
+              "carrier": "I-CABLE",
+              "priority": 2
+            },
+            {
+              "addressCode": "62012",
+              "carrier": "HKBN",
+              "priority": 3
+            }
           ]
         },
         {
-          "recogFlag": "N",
           "value": "第8座,翠擁華庭,沙安街,馬鞍山,新界",
-          "description": "第8座,<span class='keyWord'>翠擁華庭</span>,沙安街,馬鞍山,新界",
+          "description": "第8座,翠擁華庭,沙安街,馬鞍山,新界",
           "custCode": "",
           "clientType": "STANDALONE",
           "ofcaCode": "62013",
           "buildingCode": "7574190009",
           "carrierInfo": [
-            {"addressCode": "7574190009", "carrier": "CMHK", "priority": 1}
+            {
+              "addressCode": "7574190009",
+              "carrier": "CMHK",
+              "priority": 1
+            }
           ]
         }
       ]
     }
   },
   "康寧間,康寧道,觀塘,九龍": {
-    "result": {"resultCode": "0", "resultMsg": "success"},
-    "busInfo": {
-      "addressList": [
+    "busiResp": {
+      "busiDataResp": [
         {
-          "recogFlag": "N",
           "value": "康寧閣,康寧道,觀塘,九龍",
-          "description": "康寧閣,<span class='keyWord'>康寧道</span>,<span class='keyWord'>觀塘</span>,<span class='keyWord'>九龍</span>",
+          "description": "康寧閣,康寧道,觀塘,九龍",
           "custCode": "",
           "clientType": "STANDALONE",
           "ofcaCode": "51001",
           "buildingCode": "7511010001",
           "carrierInfo": [
-            {"addressCode": "7511010001", "carrier": "CMHK", "priority": 1}
+            {
+              "addressCode": "7511010001",
+              "carrier": "CMHK",
+              "priority": 1
+            }
           ]
         }
       ]
     }
   },
   "愉和閣": {
-    "result": {"resultCode": "0", "resultMsg": "success"},
-    "busInfo": {"addressList": []}
+    "busiResp": {
+      "busiDataResp": []
+    }
   },
   "__default__": {
-    "result": {"resultCode": "0", "resultMsg": "success"},
-    "busInfo": {"addressList": []}
+    "busiResp": {
+      "busiDataResp": []
+    }
   }
 }

@@ -1,12 +1,14 @@
 # CMHK 接口 curl 模板 —— 使用方法
 #
 # 1. 浏览器打开 https://www.hk.chinamobile.com/tc/home-family/broadband
-# 2. 随便查一个地址并选中一条结果(这样两个接口都会被触发)
-# 3. F12 -> 网络(Network) 面板, 分别找到这两条请求:
+# 2. 查一个地址 -> 选中一条结果 -> 再选楼层和房间号(把三个接口都触发一遍)
+# 3. F12 -> 网络(Network) 面板, 分别找到这三条请求:
 #       .../homeBroadBand/searchAddress
 #       .../homeBroadBand/getAddressDetail
-#    each 右键 -> Copy -> Copy as cURL (bash)
-# 4. 把两条 curl 都粘贴到 config/cmhk.curl (本文件去掉 .example 后缀), 每条之间用 ; 分隔
+#       .../homeBroadBand/getInstallInfo
+#    各自右键 -> Copy -> Copy as cURL (bash)
+# 4. 把三条 curl 都粘贴到 config/cmhk.curl (本文件去掉 .example 后缀)
+#    脚本按 "curl + URL" 的位置切分命令, 中间夹说明文字也不影响
 # 5. 运行:
 #       python3 src/fetch_recog_y.py --mode live --curl-file config/cmhk.curl
 #
@@ -37,3 +39,12 @@ curl 'https://www.hk.chinamobile.com/api/ecosp-emall/itemRest/homeBroadBand/getA
   -H 'origin: https://www.hk.chinamobile.com' \
   -H 'referer: https://www.hk.chinamobile.com/tc/home-family/broadband' \
   --data-raw 'orderStr=%7B%22value%22%3A%22%E6%84%89%E6%BE%A4%E9%96%A3%22%7D' ;
+curl 'https://www.hk.chinamobile.com/api/ecosp-emall/itemRest/homeBroadBand/getInstallInfo?XGiOG2f705=<粘贴你抓到的令牌>' \
+  -H 'acc-lang: zh-HK' \
+  -H 'api-version: 2' \
+  -H 'channelid: WWW' \
+  -H 'content-type: application/x-www-form-urlencoded; charset=UTF-8' \
+  -b '<粘贴你抓到的完整 Cookie>' \
+  -H 'origin: https://www.hk.chinamobile.com' \
+  -H 'referer: https://www.hk.chinamobile.com/tc/home-family/broadband' \
+  --data-raw 'busInfo=%7B%22broadBandType%22%3A%22CMHK%22%2C%22floor%22%3A%2210%22%2C%22flat%22%3A%22E%22%7D' ;
