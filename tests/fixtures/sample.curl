@@ -1,0 +1,17 @@
+curl 'https://www.hk.chinamobile.com/api/ecosp-emall/itemRest/homeBroadBand/searchAddress?XGiOG2f705=FAKE_TOKEN_FOR_TEST_ONLY' \
+  -H 'acc-lang: zh-HK' \
+  -H 'accept: application/json, text/plain, */*' \
+  -H 'api-version: 2' \
+  -H 'channelid: WWW' \
+  -H 'content-type: application/x-www-form-urlencoded; charset=UTF-8' \
+  -b 'lang=zh-HK; JSESSIONID_USER=FAKE; zA7uZWGUB1=FAKE' \
+  -H 'origin: https://www.hk.chinamobile.com' \
+  -H 'referer: https://www.hk.chinamobile.com/tc/home-family/broadband' \
+  --data-raw 'busInfo=%7B%22keyword%22%3A%22%E6%84%89%E6%BE%A4%E9%96%A3%22%7D' ;
+curl 'https://www.hk.chinamobile.com/api/ecosp-emall/itemRest/homeBroadBand/getAddressDetail?XGiOG2f705=FAKE_TOKEN_FOR_TEST_ONLY' \
+  -H 'acc-lang: zh-HK' \
+  -H 'api-version: 2' \
+  -H 'content-type: application/x-www-form-urlencoded; charset=UTF-8' \
+  -H 'cookie: lang=zh-HK; zA7uZWGUB1=FAKE' \
+  -X 'POST' \
+  --data-raw 'orderStr=%7B%22value%22%3A%22%E6%84%89%E6%BE%A4%E9%96%A3%22%7D' ;

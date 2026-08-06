@@ -1,0 +1,27 @@
+{
+  "__comment__": "构造样例, 非真实接口返回. 用于验证楼层/房间号的提取与展开逻辑, 覆盖两种结构: 楼层内嵌房间(第9座) 与 楼层/房间平铺(康寧閣). 真机跑通后请用 output/raw/ 下的真实响应替换.",
+  "第9座,翠擁華庭,沙安街,馬鞍山,新界": {
+    "result": {"resultCode": "0", "resultMsg": "success"},
+    "busInfo": {
+      "buildingCode": "7574190008",
+      "ofcaCode": "62012",
+      "floorList": [
+        {"floor": "10", "flatList": [{"flat": "A"}, {"flat": "B"}, {"flat": "E"}]},
+        {"floor": "11", "flatList": [{"flat": "A"}, {"flat": "E"}]},
+        {"floor": "12", "flatList": [{"flat": "A"}]}
+      ]
+    }
+  },
+  "康寧閣,康寧道,觀塘,九龍": {
+    "result": {"resultCode": "0", "resultMsg": "success"},
+    "busInfo": {
+      "buildingCode": "7511010001",
+      "floorList": ["1", "2", "3"],
+      "flatList": ["A", "B"]
+    }
+  },
+  "__default__": {
+    "result": {"resultCode": "0", "resultMsg": "success"},
+    "busInfo": {"floorList": [], "flatList": []}
+  }
+}
