@@ -16,20 +16,23 @@
     --mode plan   只产出查询计划(输入地址 -> 查询关键词 + 离线筛查结论), 不发网络请求.
 
 live 模式准备:
-    1. 浏览器打开 https://www.hk.chinamobile.com/tc/home-family/broadband, 随便查一个地址;
-    2. F12 网络面板找到 searchAddress 与 getAddressDetail 两条请求, 分别 Copy as cURL;
-    3. 存成一个文件(两条都放进去即可), 例如 config/cmhk.curl;
+    1. 浏览器打开 https://www.hk.chinamobile.com/tc/home-family/broadband;
+    2. 查一个地址 -> 选中一条结果 -> 再选楼层和房间号(把三个接口都触发一遍);
+    3. F12 网络面板对 searchAddress / getAddressDetail / getInstallInfo 分别
+       Copy as cURL, 三条都存进一个文件, 例如 config/cmhk.curl;
     4. python3 src/fetch_recog_y.py --mode live --curl-file config/cmhk.curl
 
     接口带反爬令牌(URL 参数 XGiOG2f705 + Cookie zA7uZWGUB1), 会过期; 脚本遇到
     401/403 会明确提示重新抓取 curl, 不会静默产出空结果.
 
 产出(默认 output/recog_y/):
-    recog_y_result.xlsx   四个表: recogY地址 / 楼层房间展开 / 未命中(bad case) / 查询汇总
-    recog_y_result.csv    同 recogY地址 表
-    recog_y_result.json   完整结构化结果
-    recog_y_report.md     人读版报告
-    raw/                  每次调用的原始响应(live 模式), 便于核对接口结构
+    recog_y_result.xlsx        四个表: 结果 / 明细 / 未命中(bad case) / 查询汇总
+    recog_y_result.csv         结果表: 序号 / 输入地址 / Floor / Flat
+    recog_y_result_detail.csv  明细: 每个地址走到哪一步, 试了多少组合
+    recog_y_result_miss.csv    未命中清单
+    recog_y_result.json        完整结构化结果
+    recog_y_report.md          人读版报告
+    raw/                       每次调用的原始响应(live 模式), 便于核对接口结构
 """
 
 import argparse
@@ -61,13 +64,6 @@ def build_keyword(raw, mode):
     if mode == "canonical":
         return hk.canonical(hk.parse(norm)) or norm
     raise ValueError("未知 keyword-mode: %s" % mode)
-
-
-def offline_verdict(idx, raw):
-    """复用离线筛查规则, 给出该地址的静态结论(用于和接口结果交叉验证)."""
-    rec = sc.Record(idx, raw)
-    sc.check_row_rules(rec)
-    return rec
 
 
 class AddressResult:
